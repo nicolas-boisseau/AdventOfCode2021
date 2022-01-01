@@ -171,35 +171,77 @@ func (n *Node) Explode(level int) bool {
 }
 
 func (n *Node) Split() bool {
+	nodesToSplit := n.SelectNodeToSplit()
 
-	somethingHappen := false
+	//for _, nodeToSplit := range nodesToSplit {
+	if len(nodesToSplit) > 0 {
+		// Split only first node
+		nodeToSplit := nodesToSplit[0]
+		//fmt.Println("Spliting:", nodeToSplit.value)
+		nodeToSplit.isLeaf = false
+		nodeToSplit.left = &Node{
+			parent: nodeToSplit,
+			isLeaf: true,
+			value:  int64(math.Floor(float64(nodeToSplit.value) / 2.0)),
+		}
+		nodeToSplit.right = &Node{
+			parent: nodeToSplit,
+			isLeaf: true,
+			value:  int64(math.Ceil(float64(nodeToSplit.value) / 2.0)),
+		}
+	}
+
+	return len(nodesToSplit) > 0
+}
+
+func (n *Node) SelectNodeToSplit() []*Node {
+
+	selectedNodes := make([]*Node, 0)
 
 	if n.isLeaf && n.value >= 10 {
 		//fmt.Println("Spliting:", n.value)
-		n.isLeaf = false
-		n.left = &Node{
-			parent: n,
-			isLeaf: true,
-			value:  int64(math.Floor(float64(n.value) / 2.0)),
-		}
-		n.right = &Node{
-			parent: n,
-			isLeaf: true,
-			value:  int64(math.Ceil(float64(n.value) / 2.0)),
-		}
+		//n.isLeaf = false
+		//n.left = &Node{
+		//	parent: n,
+		//	isLeaf: true,
+		//	value:  int64(math.Floor(float64(n.value) / 2.0)),
+		//}
+		//n.right = &Node{
+		//	parent: n,
+		//	isLeaf: true,
+		//	value:  int64(math.Ceil(float64(n.value) / 2.0)),
+		//}
 
-		somethingHappen = true
+		selectedNodes = append(selectedNodes, n)
 	}
 	if n.left != nil {
-		somethingHappenInChild := n.left.Split()
-		somethingHappen = somethingHappen || somethingHappenInChild
+		childNodes := n.left.SelectNodeToSplit()
+		selectedNodes = append(selectedNodes, childNodes...)
 	}
 	if n.right != nil {
-		somethingHappenInChild := n.right.Split()
-		somethingHappen = somethingHappen || somethingHappenInChild
+		childNodes := n.right.SelectNodeToSplit()
+		selectedNodes = append(selectedNodes, childNodes...)
+
 	}
 
-	return somethingHappen
+	return selectedNodes
+}
+
+func (n *Node) Magnitude() int64 {
+
+	var magnitude int64 = 0
+
+	if n.isLeaf {
+		if n.parent.left == n {
+			magnitude += n.value
+		} else {
+			magnitude += n.value
+		}
+	} else {
+		magnitude += 3*n.left.Magnitude() + 2*n.right.Magnitude()
+	}
+
+	return magnitude
 }
 
 func ReadNode(str string) *Node {

@@ -147,6 +147,13 @@ func Test_SplitNode(t *testing.T) {
 	fmt.Println("After split :", n)
 
 	assert.True(t, changed)
+	assert.Equal(t, "[[[[0,7],4],[[7,8],[0,13]]],[1,1]]", n.String())
+
+	// 2nd split
+	fmt.Println("Before split:", n)
+	changed = n.Split()
+	fmt.Println("After split :", n)
+	assert.True(t, changed)
 	assert.Equal(t, "[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]", n.String())
 
 	// Try split again and verify that nothing happens
@@ -164,4 +171,35 @@ func Test_AddCmplexNodes(t *testing.T) {
 
 	fmt.Println(n3)
 	assert.Equal(t, "[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]", n3.String())
+}
+
+func Test_AddCmplexNodes2(t *testing.T) {
+	n1Str := "[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]"
+	n2Str := "[[2,[[0,8],[3,4]]],[[[6,7],1],[7,[1,6]]]]"
+	n1 := ReadNode(n1Str)
+	n2 := ReadNode(n2Str)
+
+	n3 := Add(n1, n2)
+
+	fmt.Println(n3)
+	assert.Equal(t, "[[[[6,7],[6,7]],[[7,7],[0,7]]],[[[8,7],[7,7]],[[8,8],[8,0]]]]", n3.String())
+}
+
+func Test_Magnitude(t *testing.T) {
+	n := ReadNode("[[1,2],[[3,4],5]]")
+	assert.Equal(t, int64(143), n.Magnitude())
+}
+
+func Test_Magnitude2(t *testing.T) {
+	n := ReadNode("[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]")
+	assert.Equal(t, int64(3488), n.Magnitude())
+}
+
+func Test_Add(t *testing.T) {
+	n1 := ReadNode("[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]")
+	n2 := ReadNode("[[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]")
+
+	added := Add(n1, n2)
+	fmt.Println(added)
+	fmt.Println(added.Magnitude())
 }
