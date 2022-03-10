@@ -1,23 +1,27 @@
 package day19
 
 import (
+	"AdventOfCode2021/common"
 	"bytes"
 	"fmt"
 	. "github.com/ahmetalpbalkan/go-linq"
 	"github.com/golang-collections/collections/set"
+	"log"
 	"math"
+	"strings"
 )
 
 type Point struct {
-	x, y, z float64
+	x, y, z  float64
+	isBeacon bool
 }
 
 type Scanner struct {
-	name              string
-	posRelativeTo     map[int]*Point
-	beaconsRelativeTo map[int][]*Point
-	beacons           []*Point
-	realBeacons       []*Point
+	name                    string
+	deltaRelativeTo         map[int]*Point
+	beaconsRelativeTo       map[int][]*Point
+	beacons                 []*Point
+	rotationIndexRelativeTo map[int]int
 }
 
 func newPoint(x, y, z float64) *Point {
@@ -30,6 +34,15 @@ func newPoint(x, y, z float64) *Point {
 
 func (p *Point) Equals(p2 *Point) bool {
 	return p.x == p2.x && p.y == p2.y && p.z == p2.z
+}
+
+func (p *Point) Add(p2 *Point) *Point {
+	return &Point{
+		x:        p.x + p2.x,
+		y:        p.y + p2.y,
+		z:        p.z + p2.z,
+		isBeacon: p.isBeacon || p2.isBeacon,
+	}
 }
 
 func (p *Point) Distance(p2 *Point) (float64, *Point) {
@@ -84,11 +97,11 @@ func SimilarDistance(nuage1 []*Point, nuage2 []*Point) (int, *Point, []*Point) {
 
 func newScanner(name string) *Scanner {
 	return &Scanner{
-		name:              name,
-		posRelativeTo:     make(map[int]*Point), // position unknown
-		beaconsRelativeTo: make(map[int][]*Point),
-		beacons:           make([]*Point, 0),
-		realBeacons:       make([]*Point, 0),
+		name:                    name,
+		deltaRelativeTo:         make(map[int]*Point), // position unknown
+		beaconsRelativeTo:       make(map[int][]*Point),
+		beacons:                 make([]*Point, 0),
+		rotationIndexRelativeTo: make(map[int]int, 0),
 	}
 }
 
@@ -106,21 +119,24 @@ func (p *Point) Rotate(degre float64, axe string) *Point {
 
 	if axe == "z" {
 		return &Point{
-			x: math.Round(p.x*math.Cos(angle) - p.y*math.Sin(angle)),
-			y: math.Round(p.x*math.Sin(angle) + p.y*math.Cos(angle)),
-			z: p.z,
+			x:        math.Round(p.x*math.Cos(angle) - p.y*math.Sin(angle)),
+			y:        math.Round(p.x*math.Sin(angle) + p.y*math.Cos(angle)),
+			z:        p.z,
+			isBeacon: p.isBeacon,
 		}
 	} else if axe == "x" {
 		return &Point{
-			x: p.x,
-			y: math.Round(p.y*math.Cos(angle) - p.z*math.Sin(angle)),
-			z: math.Round(p.y*math.Sin(angle) + p.z*math.Cos(angle)),
+			x:        p.x,
+			y:        math.Round(p.y*math.Cos(angle) - p.z*math.Sin(angle)),
+			z:        math.Round(p.y*math.Sin(angle) + p.z*math.Cos(angle)),
+			isBeacon: p.isBeacon,
 		}
 	} else {
 		return &Point{
-			x: math.Round(p.z*math.Sin(angle) + p.x*math.Cos(angle)),
-			y: p.y,
-			z: math.Round(p.z*math.Cos(angle) - p.x*math.Sin(angle)),
+			x:        math.Round(p.z*math.Sin(angle) + p.x*math.Cos(angle)),
+			y:        p.y,
+			z:        math.Round(p.z*math.Cos(angle) - p.x*math.Sin(angle)),
+			isBeacon: p.isBeacon,
 		}
 	}
 }
@@ -128,21 +144,24 @@ func (p *Point) Rotate(degre float64, axe string) *Point {
 func (p *Point) ReverseDirection(axe string) *Point {
 	if axe == "z" {
 		return &Point{
-			x: p.x,
-			y: p.y,
-			z: -p.z,
+			x:        p.x,
+			y:        p.y,
+			z:        -p.z,
+			isBeacon: p.isBeacon,
 		}
 	} else if axe == "x" {
 		return &Point{
-			x: -p.x,
-			y: p.y,
-			z: p.z,
+			x:        -p.x,
+			y:        p.y,
+			z:        p.z,
+			isBeacon: p.isBeacon,
 		}
 	} else {
 		return &Point{
-			x: p.x,
-			y: -p.y,
-			z: p.z,
+			x:        p.x,
+			y:        -p.y,
+			z:        p.z,
+			isBeacon: p.isBeacon,
 		}
 	}
 }
@@ -349,4 +368,99 @@ func (s *Scanner) Overlap(s2 *Scanner) ([]*Point, bool, *Point) {
 	fmt.Println("Max matches:", maxMatches, deltaPos)
 
 	return maxMatchBeacons, maxMatches > 0, deltaPos
+}
+
+func (s *Scanner) AlignWith(otherScanner *Scanner, otherScannerIndex int) {
+	allRotationNuageB := AllRotations(s.beacons)
+	max := 0
+	for rotationIndex, rotationNuageB := range allRotationNuageB {
+		similarDistance, delta, _ := SimilarDistance(otherScanner.beacons, rotationNuageB)
+		if similarDistance >= 12 {
+
+			nuageBrelativeToA := MoveNuage(rotationNuageB, delta)
+			sumEqualsToA := 0
+			pointsToMarkRealBeacon := make([]*Point, 0)
+			for _, pB := range nuageBrelativeToA {
+				for _, pA := range otherScanner.beacons {
+					if pB.Equals(pA) {
+						sumEqualsToA++
+						pointsToMarkRealBeacon = append(pointsToMarkRealBeacon, pA, pB)
+					}
+				}
+			}
+
+			if sumEqualsToA >= 12 && sumEqualsToA >= max {
+
+				for _, p := range pointsToMarkRealBeacon {
+					p.isBeacon = true
+				}
+
+				if _, isExist := s.deltaRelativeTo[otherScannerIndex]; !isExist {
+					s.deltaRelativeTo[otherScannerIndex] = delta
+					s.beaconsRelativeTo[otherScannerIndex] = nuageBrelativeToA
+					s.rotationIndexRelativeTo[otherScannerIndex] = rotationIndex
+				}
+				break
+			}
+		}
+	}
+}
+
+func ReadScannersFromFile(fileName string) []*Scanner {
+	lines := common.ReadLinesFromFile(fileName)
+
+	scanners := make([]*Scanner, 0)
+	var currentScanner *Scanner
+	for _, line := range lines {
+		if strings.Contains(line, "scanner") {
+			currentScanner = newScanner(line)
+		} else if line != "" {
+			reader := strings.NewReader(line)
+			var x, y, z float64
+			_, err := fmt.Fscanf(reader, "%f,%f,%f", &x, &y, &z)
+			if err != nil {
+				log.Fatal(err)
+			}
+			p := &Point{
+				x: x,
+				y: y,
+				z: z,
+			}
+			currentScanner.beacons = append(currentScanner.beacons, p)
+		} else {
+			scanners = append(scanners, currentScanner)
+		}
+	}
+	// Don't forget the last scanner !
+	scanners = append(scanners, currentScanner)
+
+	return scanners
+}
+
+func FindDeltaToZero(scanner *Scanner, allScanners []*Scanner, previousDelta *Point) *Point {
+	currentScanner := scanner
+	for k, _ := range currentScanner.deltaRelativeTo {
+		if k == 0 {
+			return currentScanner.deltaRelativeTo[k]
+		} else {
+			delta := previousDelta.Add(currentScanner.deltaRelativeTo[k])
+			return FindDeltaToZero(allScanners[k], allScanners, delta)
+		}
+	}
+
+	fmt.Println("ERROR : CANNOT FIND A WAY TO SCANNER ZERO !")
+	return nil
+}
+
+func MoveNuage(nuage []*Point, delta *Point) []*Point {
+	result := make([]*Point, 0)
+	for _, p := range nuage {
+		result = append(result, &Point{
+			x:        p.x + delta.x,
+			y:        p.y + delta.y,
+			z:        p.z + delta.z,
+			isBeacon: p.isBeacon,
+		})
+	}
+	return result
 }

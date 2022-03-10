@@ -20,13 +20,21 @@ func Test_Process_sample(t *testing.T) {
 func Test_Process_input(t *testing.T) {
 	result := Process("input.txt", false)
 
-	assert.Equal(t, 576600, result)
+	assert.Equal(t, int64(582644), result)
+}
+
+func Test_Process_sample0_complex(t *testing.T) {
+	result := Process("sample0.txt", true)
+
+	var expected int64 = 39
+
+	assert.Equal(t, expected, result)
 }
 
 func Test_Process_sample_complex(t *testing.T) {
 	result := Process("sample_complex.txt", true)
 
-	var expected int64 = 444356092776315
+	var expected int64 = 2758514936282235
 
 	assert.Equal(t, expected, result)
 }
